@@ -1,354 +1,335 @@
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
-
-// 1. ORODHA YA MA-DJ NA MOVIES ZAO (Weka links zako hapa)
-List<Map<String, dynamic>> localMovies = [
-  {
-    'id': 1,
-    'title': 'Kisasi cha Damu',
-    'dj': 'DJ Afro',
-    'category': 'Action',
-    'image_url': 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500',
-    'video_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    'description': 'Filamu ya kusisimua iliyotafsiriwa na DJ Afro.',
-    'is_trending': true,
-  },
-  {
-    'id': 2,
-    'title': 'Vita vya Majeshi',
-    'dj': 'DJ Afro',
-    'category': 'Action',
-    'image_url': 'https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=500',
-    'video_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-    'description': 'Mapigano makali ya jeshi na uokoaji.',
-    'is_trending': false,
-  },
-  {
-    'id': 3,
-    'title': 'Penzi la Siri',
-    'dj': 'DJ Mack',
-    'category': 'Mapenzi',
-    'image_url': 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=500',
-    'video_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    'description': 'Tamthilia ya mapenzi ya DJ Mack.',
-    'is_trending': true,
-  },
-  {
-    'id': 4,
-    'title': 'Kipigo cha Mtaani',
-    'dj': 'DJ Smith',
-    'category': 'Action',
-    'image_url': 'https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=500',
-    'video_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
-    'description': 'Mapigano ya mtaani na mikakati mikubwa.',
-    'is_trending': false,
-  },
-  {
-    'id': 5,
-    'title': 'Safari ya Hatari',
-    'dj': 'DJ Murphy',
-    'category': 'Adventure',
-    'image_url': 'https://images.unsplash.com/photo-1478760329108-5c3ed9d495a0?w=500',
-    'video_url': 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
-    'description': 'Ujasiri na ugunduzi msituni.',
-    'is_trending': true,
-  },
-];
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MoviesApp());
+  runApp(const BongoFlixApp());
 }
 
-class MoviesApp extends StatelessWidget {
-  const MoviesApp({super.key});
+class BongoFlixApp extends StatefulWidget {
+  const BongoFlixApp({super.key});
+
+  @override
+  State<BongoFlixApp> createState() => _BongoFlixAppState();
+}
+
+class _BongoFlixAppState extends State<BongoFlixApp> {
+  ThemeMode _themeMode = ThemeMode.dark;
+  String _language = 'sw';
+
+  void _toggleTheme(bool isDark) {
+    setState(() {
+      _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
+    });
+  }
+
+  void _changeLanguage(String lang) {
+    setState(() {
+      _language = lang;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Movies TZ',
+      title: 'BongoFlix',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        primaryColor: Colors.redAccent,
+      themeMode: _themeMode,
+      theme: ThemeData(
+        brightness: Brightness.light,
+        primaryColor: const Color(0xFFE50914),
+        scaffoldBackgroundColor: const Color(0xFFF3F4F6),
+        appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: Colors.black),
       ),
-      home: const MainNavigationScreen(),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primaryColor: const Color(0xFFE50914),
+        scaffoldBackgroundColor: const Color(0xFF141414),
+        cardColor: const Color(0xFF1F1F1F),
+        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF141414), foregroundColor: Colors.white),
+      ),
+      home: MainNavigation(
+        themeMode: _themeMode,
+        language: _language,
+        onToggleTheme: _toggleTheme,
+        onChangeLanguage: _changeLanguage,
+      ),
     );
   }
 }
 
-// Navigation Bar ya Chini
-class MainNavigationScreen extends StatefulWidget {
-  const MainNavigationScreen({super.key});
+class MovieModel {
+  final int id;
+  final String title;
+  final String category;
+  final String rating;
+  final String year;
+  final String poster;
+  final String description;
+  final int totalEpisodes;
+  final String driveFolder;
 
-  @override
-  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+  MovieModel({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.rating,
+    required this.year,
+    required this.poster,
+    required this.description,
+    required this.totalEpisodes,
+    required this.driveFolder,
+  });
 }
 
-class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _currentIndex = 0;
+final List<MovieModel> sampleMovies = [
+  MovieModel(
+    id: 1,
+    title: "Sultan: Ushindi wa Damu",
+    category: "Series za Kihindi",
+    rating: "8.9",
+    year: "2024",
+    poster: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=500&q=80",
+    description: "Hadithi ya mfalme Sultan aliyepigania haki ya taifa lake dhidi ya maadui.",
+    totalEpisodes: 16,
+    driveFolder: "https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv",
+  ),
+  MovieModel(
+    id: 2,
+    title: "Kijiji Cha Mauti",
+    category: "Bongo Movie",
+    rating: "9.2",
+    year: "2025",
+    poster: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=500&q=80",
+    description: "Bongo movie ya kusisimua inayohusu siri nzito iliyofichika kijijini.",
+    totalEpisodes: 12,
+    driveFolder: "https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv",
+  ),
+  MovieModel(
+    id: 3,
+    title: "Black Shadow: Revenge",
+    category: "Action",
+    rating: "8.5",
+    year: "2024",
+    poster: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=500&q=80",
+    description: "Kikosi maalum cha makomando kinachorudi kulipiza kisasi.",
+    totalEpisodes: 10,
+    driveFolder: "https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv",
+  ),
+];
 
-  final List<Widget> _pages = [
-    const HomeScreen(),
-    const CategoriesScreen(),
-    const Center(child: Text('Hakuna Vipakuliwa kwa sasa')),
-    const Center(child: Text('Hakuna Vipendwa kwa sasa')),
-  ];
+class MainNavigation extends StatefulWidget {
+  final ThemeMode themeMode;
+  final String language;
+  final Function(bool) onToggleTheme;
+  final Function(String) onChangeLanguage;
+
+  const MainNavigation({
+    super.key,
+    required this.themeMode,
+    required this.language,
+    required this.onToggleTheme,
+    required this.onChangeLanguage,
+  });
+
+  @override
+  State<MainNavigation> createState() => _MainNavigationState();
+}
+
+class _MainNavigationState extends State<MainNavigation> {
+  int _currentIndex = 0;
+  final Set<int> _favorites = {1};
+  String _selectedCategory = 'All';
+
+  void _toggleFavorite(int id) {
+    setState(() {
+      if (_favorites.contains(id)) {
+        _favorites.remove(id);
+      } else {
+        _favorites.add(id);
+      }
+    });
+  }
+
+  void _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _showVipDialog() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.workspace_premium, color: Colors.amber),
+            SizedBox(width: 8),
+            Text('LIPA VIP ACCESS'),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Ep 1 - 8 ni BURE. Kutazama Ep 9 hadi mwisho:'),
+            SizedBox(height: 8),
+            Text('• Wiki: TZS 3,000\n• Mwezi: TZS 8,000', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            Text('Lipa Namba: 0755 000 000 (M-Pesa / Tigo)'),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Funga')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            onPressed: () => _openUrl('https://wa.me/255755000000?text=Habari%20nataka%20kujiunga%20VIP'),
+            child: const Text('Thibitisha WhatsApp', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isSw = widget.language == 'sw';
+
+    final pages = [
+      _buildHome(isSw),
+      _buildCategory(isSw),
+      _buildFavorites(isSw),
+      _buildSettings(isSw),
+    ];
+
     return Scaffold(
-      body: _pages[_currentIndex],
+      appBar: AppBar(
+        title: const Text('BONGO FLIX', style: TextStyle(color: Color(0xFFE50914), fontWeight: FontWeight.bold)),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFE50914),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+              onPressed: _showVipDialog,
+              icon: const Icon(Icons.workspace_premium, color: Colors.amber, size: 16),
+              label: Text(isSw ? 'Lipa VIP' : 'VIP Access', style: const TextStyle(fontSize: 12, color: Colors.white)),
+            ),
+          )
+        ],
+      ),
+      body: pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.black,
-        selectedItemColor: Colors.redAccent,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Nyumbani'),
-          BottomNavigationBarItem(icon: Icon(Icons.category), label: 'Ma-DJ / Kategoria'),
-          BottomNavigationBarItem(icon: Icon(Icons.download), label: 'Vipakuliwa'),
-          BottomNavigationBarItem(icon: Icon(Icons.favorite_border), label: 'Vipendwa'),
+        selectedItemColor: const Color(0xFFE50914),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.home), label: isSw ? 'Home' : 'Home'),
+          BottomNavigationBarItem(icon: const Icon(Icons.category), label: isSw ? 'Category' : 'Category'),
+          BottomNavigationBarItem(icon: const Icon(Icons.bookmark), label: isSw ? 'Favorite' : 'Favorite'),
+          BottomNavigationBarItem(icon: const Icon(Icons.settings), label: isSw ? 'Setting' : 'Setting'),
         ],
       ),
     );
   }
-}
 
-// 2. UKURASA WA NYUMBANI (HOME)
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  String selectedDj = 'WOTE';
-  final List<String> djList = ['WOTE', 'DJ Afro', 'DJ Mack', 'DJ Smith', 'DJ Murphy', 'DJ Black'];
-
-  List<Map<String, dynamic>> get filteredMovies {
-    if (selectedDj == 'WOTE') return localMovies;
-    return localMovies.where((m) => m['dj'] == selectedDj).toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final featured = localMovies.firstWhere(
-          (m) => m['is_trending'] == true,
-      orElse: () => localMovies.first,
-    );
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        title: const Text(
-          'MOVIES TZ',
-          style: TextStyle(
-            color: Colors.redAccent,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.2,
+  Widget _buildHome(bool isSw) {
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        // Marquee Ticker banner
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(color: const Color(0xFFE50914).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          child: Row(
+            children: [
+              const Icon(Icons.campaign, color: Color(0xFFE50914), size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isSw ? '🔥 Muvi mpya zimeingia: Kijiji Cha Mauti, Sultan Season 3! Lipa TZS 3,000 kwa wiki.' : '🔥 New Movies: Check out latest releases!',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFE50914)),
+                ),
+              ),
+            ],
           ),
         ),
-        actions: [
-          IconButton(icon: const Icon(Icons.search), onPressed: () {}),
-          IconButton(icon: const Icon(Icons.share), onPressed: () {}),
-        ],
-      ),
-      body: SingleChildScrollView(
+        const SizedBox(height: 16),
+        Text(isSw ? 'Muvi Zinazopendwa' : 'Trending Movies', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: sampleMovies.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 10, mainAxisSpacing: 10),
+          itemBuilder: (ctx, i) => _buildMovieCard(sampleMovies[i]),
+        ),
+        const SizedBox(height: 20),
+        // Payment & Contact Section
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(12)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Jinsi Ya Kulipia & Mawasiliano', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFE50914))),
+              const SizedBox(height: 8),
+              const Text('M-Pesa / Tigo / Airtel: 0755 000 000 (BONGO FLIX)', style: TextStyle(fontSize: 12)),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                onPressed: () => _openUrl('https://wa.me/255755000000?text=Habari%20nimefanya%20malipo'),
+                icon: const Icon(Icons.chat, color: Colors.white),
+                label: const Text('Wasiliana WhatsApp', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMovieCard(MovieModel movie) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => DetailPage(movie: movie, onVipClick: _showVipDialog, onOpenUrl: _openUrl))),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Featured Movie Banner
-            Stack(
-              children: [
-                Container(
-                  height: 220,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: NetworkImage(featured['image_url']),
-                      fit: BoxFit.cover,
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(movie.poster, fit: BoxFit.cover),
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: CircleAvatar(
+                      backgroundColor: Colors.black54,
+                      radius: 16,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        icon: Icon(_favorites.contains(movie.id) ? Icons.bookmark : Icons.bookmark_border, color: const Color(0xFFE50914), size: 18),
+                        onPressed: () => _toggleFavorite(movie.id),
+                      ),
                     ),
                   ),
-                ),
-                Container(
-                  height: 220,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withOpacity(0.8),
-                        const Color(0xFF121212),
-                      ],
-                    ),
-                  ),
-                ),
-                Positioned(
-                  bottom: 16,
-                  left: 16,
-                  right: 16,
-                  child: Row(
-                    children: [
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PlayerScreen(
-                                title: featured['title'],
-                                videoUrl: featured['video_url'],
-                              ),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.play_arrow),
-                        label: const Text('Tazama Sasa'),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Colors.white70),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                        ),
-                        onPressed: () {},
-                        icon: const Icon(Icons.add),
-                        label: const Text('Orodha Yangu'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Chagua DJ Wako',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
-
-            // Orodha ya Ma-DJ (Horizontal Scroll Buttons)
-            SizedBox(
-              height: 45,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: djList.length,
-                itemBuilder: (context, index) {
-                  final dj = djList[index];
-                  final isSelected = selectedDj == dj;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ChoiceChip(
-                      label: Text(dj),
-                      selected: isSelected,
-                      selectedColor: Colors.redAccent,
-                      backgroundColor: Colors.grey[900],
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.grey[300],
-                        fontWeight: FontWeight.bold,
-                      ),
-                      onSelected: (val) {
-                        setState(() {
-                          selectedDj = dj;
-                        });
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            const SizedBox(height: 16),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'Filamu za $selectedDj',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Orodha ya Movies
-            SizedBox(
-              height: 200,
-              child: filteredMovies.isEmpty
-                  ? const Center(child: Text('Hakuna filamu ya DJ huyu kwa sasa'))
-                  : ListView.builder(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                itemCount: filteredMovies.length,
-                itemBuilder: (context, index) {
-                  final movie = filteredMovies[index];
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => PlayerScreen(
-                            title: movie['title'],
-                            videoUrl: movie['video_url'],
-                          ),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      width: 125,
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: Image.network(
-                              movie['image_url'],
-                              height: 150,
-                              width: 125,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  Container(
-                                    height: 150,
-                                    width: 125,
-                                    color: Colors.grey[850],
-                                    child: const Icon(Icons.movie, color: Colors.white54),
-                                  ),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            movie['title'],
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                          ),
-                          Text(
-                            movie['dj'],
-                            style: const TextStyle(fontSize: 11, color: Colors.redAccent),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(movie.category, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  Text(movie.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
               ),
             ),
           ],
@@ -356,222 +337,161 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-}
 
-// 3. UKURASA MAALUM WA KATEGORIA / MA-DJ (CATEGORIES TAB)
-class CategoriesScreen extends StatelessWidget {
-  const CategoriesScreen({super.key});
+  Widget _buildCategory(bool isSw) {
+    final categories = ['All', 'Action', 'Bongo Movie', 'Series za Kihindi', 'Series za Kifilipino'];
+    final filtered = _selectedCategory == 'All'
+        ? sampleMovies
+        : sampleMovies.where((m) => m.category.toLowerCase() == _selectedCategory.toLowerCase()).toList();
 
-  final List<String> djs = const [
-    'DJ Afro',
-    'DJ Mack',
-    'DJ Smith',
-    'DJ Murphy',
-    'DJ Black',
-    'DJ Sky',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Orodha ya Ma-DJ'),
-        backgroundColor: Colors.black,
-      ),
-      body: GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 1.3,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
-        itemCount: djs.length,
-        itemBuilder: (context, index) {
-          final djName = djs[index];
-          final count = localMovies.where((m) => m['dj'] == djName).length;
-
-          return InkWell(
-            onTap: () {
-              // Fungua list ya movies za DJ huyo
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DjMoviesScreen(djName: djName),
-                ),
-              );
-            },
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.redAccent.withOpacity(0.4)),
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        Text(isSw ? 'Makundi ya Muvi' : 'Categories', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 40,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: categories.map((cat) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(cat),
+                selected: _selectedCategory == cat,
+                selectedColor: const Color(0xFFE50914),
+                onSelected: (bool selected) {
+                  setState(() => _selectedCategory = cat);
+                },
               ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.mic, color: Colors.redAccent, size: 36),
-                  const SizedBox(height: 8),
-                  Text(
-                    djName,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '$count Movies',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// Ukurasa unaoonyesha movies zote za DJ uliyemchagua kwenye kategoria
-class DjMoviesScreen extends StatelessWidget {
-  final String djName;
-  const DjMoviesScreen({super.key, required this.djName});
-
-  @override
-  Widget build(BuildContext context) {
-    final djMovies = localMovies.where((m) => m['dj'] == djName).toList();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Filamu za $djName'),
-        backgroundColor: Colors.black,
-      ),
-      body: djMovies.isEmpty
-          ? const Center(child: Text('Hakuna filamu zilizopakiwa za DJ huyu bado.'))
-          : GridView.builder(
-        padding: const EdgeInsets.all(12),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          childAspectRatio: 0.65,
-          crossAxisSpacing: 10,
-          mainAxisSpacing: 10,
-        ),
-        itemCount: djMovies.length,
-        itemBuilder: (context, index) {
-          final movie = djMovies[index];
-          return GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => PlayerScreen(
-                    title: movie['title'],
-                    videoUrl: movie['video_url'],
-                  ),
-                ),
-              );
-            },
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      movie['image_url'],
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) =>
-                          Container(color: Colors.grey[850]),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  movie['title'],
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// 4. SCREEN YA KUCHEZA VIDEO (PLAYER)
-class PlayerScreen extends StatefulWidget {
-  final String title;
-  final String videoUrl;
-
-  const PlayerScreen({super.key, required this.title, required this.videoUrl});
-
-  @override
-  State<PlayerScreen> createState() => _PlayerScreenState();
-}
-
-class _PlayerScreenState extends State<PlayerScreen> {
-  late VideoPlayerController _controller;
-  bool _isInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.videoUrl))
-      ..initialize().then((_) {
-        setState(() {
-          _isInitialized = true;
-        });
-        _controller.play();
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: Colors.black,
-      ),
-      body: Center(
-        child: _isInitialized
-            ? AspectRatio(
-          aspectRatio: _controller.value.aspectRatio,
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              VideoPlayer(_controller),
-              VideoProgressIndicator(_controller, allowScrubbing: true),
-              Center(
-                child: IconButton(
-                  iconSize: 55,
-                  icon: Icon(
-                    _controller.value.isPlaying
-                        ? Icons.pause_circle
-                        : Icons.play_circle,
-                    color: Colors.white.withOpacity(0.85),
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _controller.value.isPlaying
-                          ? _controller.pause()
-                          : _controller.play();
-                    });
-                  },
-                ),
-              ),
-            ],
+            )).toList(),
           ),
-        )
-            : const CircularProgressIndicator(color: Colors.redAccent),
+        ),
+        const SizedBox(height: 12),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: filtered.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 10, mainAxisSpacing: 10),
+          itemBuilder: (ctx, i) => _buildMovieCard(filtered[i]),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFavorites(bool isSw) {
+    final favList = sampleMovies.where((m) => _favorites.contains(m.id)).toList();
+    if (favList.isEmpty) {
+      return Center(child: Text(isSw ? 'Huna muvi ulizohifadhi bado.' : 'No saved movies yet.'));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: favList.length,
+      itemBuilder: (ctx, i) => ListTile(
+        leading: Image.network(favList[i].poster, width: 45, fit: BoxFit.cover),
+        title: Text(favList[i].title),
+        subtitle: Text(favList[i].category),
+        trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _toggleFavorite(favList[i].id)),
+        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => DetailPage(movie: favList[i], onVipClick: _showVipDialog, onOpenUrl: _openUrl))),
+      ),
+    );
+  }
+
+  Widget _buildSettings(bool isSw) {
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: [
+        SwitchListTile(
+          secondary: const Icon(Icons.dark_mode, color: Color(0xFFE50914)),
+          title: Text(isSw ? 'Dark Mode' : 'Dark Theme'),
+          value: widget.themeMode == ThemeMode.dark,
+          onChanged: widget.onToggleTheme,
+        ),
+        ListTile(
+          leading: const Icon(Icons.language, color: Color(0xFFE50914)),
+          title: Text(isSw ? 'Lugha (Language)' : 'Language'),
+          trailing: DropdownButton<String>(
+            value: widget.language,
+            underline: const SizedBox(),
+            items: const [
+              DropdownMenuItem(value: 'sw', child: Text('Kiswahili')),
+              DropdownMenuItem(value: 'en', child: Text('English')),
+            ],
+            onChanged: (val) => widget.onChangeLanguage(val ?? 'sw'),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.cloud, color: Colors.blue),
+          title: const Text('Google Drive Folder'),
+          onTap: () => _openUrl('https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.video_library, color: Colors.red),
+          title: const Text('YouTube Channel'),
+          onTap: () => _openUrl('https://youtube.com'),
+        ),
+        ListTile(
+          leading: const Icon(Icons.star, color: Colors.amber),
+          title: Text(isSw ? 'Tupigie Kura (Rate Us)' : 'Rate Us'),
+          onTap: () => _openUrl('https://play.google.com'),
+        ),
+      ],
+    );
+  }
+}
+
+class DetailPage extends StatelessWidget {
+  final MovieModel movie;
+  final VoidCallback onVipClick;
+  final Function(String) onOpenUrl;
+
+  const DetailPage({super.key, required this.movie, required this.onVipClick, required this.onOpenUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(movie.title)),
+      body: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(movie.poster, height: 220, width: double.infinity, fit: BoxFit.cover),
+          ),
+          const SizedBox(height: 12),
+          Text(movie.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          Text('${movie.category} • Rating: ${movie.rating}', style: const TextStyle(color: Colors.grey)),
+          const SizedBox(height: 8),
+          Text(movie.description),
+          const SizedBox(height: 16),
+          const Text('Episodes & Downloads', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: movie.totalEpisodes,
+            itemBuilder: (ctx, idx) {
+              final ep = idx + 1;
+              final isFree = ep <= 8;
+              return Card(
+                child: ListTile(
+                  leading: CircleAvatar(backgroundColor: isFree ? Colors.green.withOpacity(0.2) : Colors.amber.withOpacity(0.2), child: Text('$ep')),
+                  title: Text('Episode $ep'),
+                  subtitle: Text(isFree ? 'BURE (Free)' : 'VIP ONLY (Lipia)', style: TextStyle(color: isFree ? Colors.green : Colors.amber, fontWeight: FontWeight.bold)),
+                  trailing: isFree
+                      ? ElevatedButton(
+                    onPressed: () => onOpenUrl(movie.driveFolder),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE50914)),
+                    child: const Text('Download', style: TextStyle(color: Colors.white, fontSize: 12)),
+                  )
+                      : OutlinedButton(
+                    onPressed: onVipClick,
+                    child: const Text('Fungua', style: TextStyle(fontSize: 12)),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
