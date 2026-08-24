@@ -1,28 +1,83 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:marquee/marquee.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 void main() {
-  runApp(const BongoFlixApp());
+  runApp(const DJMovieApp());
 }
 
-class BongoFlixApp extends StatefulWidget {
-  const BongoFlixApp({super.key});
+// -------------------------------------------------------------
+// 1. MODEL & GOOGLE DRIVE SERVICE
+// -------------------------------------------------------------
+class DriveItem {
+  final String id;
+  final String name;
+  final String mimeType;
+  final bool isFolder;
+
+  DriveItem({
+    required this.id,
+    required this.name,
+    required this.mimeType,
+    required this.isFolder,
+  });
+
+  factory DriveItem.fromJson(Map<String, dynamic> json) {
+    return DriveItem(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      mimeType: json['mimeType'] ?? '',
+      isFolder: json['mimeType'] == 'application/vnd.google-apps.folder',
+    );
+  }
+
+  String get downloadUrl => 'https://drive.google.com/uc?export=download&id=$id';
+}
+
+class GoogleDriveService {
+  static const String apiKey = 'WEKA_API_KEY_YAKO_HAPA';
+
+  static Future<List<DriveItem>> fetchFolderContents(String folderId) async {
+    final String url =
+        'https://www.googleapis.com/drive/v3/files?q=%27$folderId%27+in+parents+and+trashed=false&fields=files(id,name,mimeType)&key=$apiKey';
+
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final List files = data['files'];
+        return files.map((file) => DriveItem.fromJson(file)).toList();
+      }
+    } catch (e) {
+      debugPrint('Drive fetch error: $e');
+    }
+    return [];
+  }
+}
+
+// -------------------------------------------------------------
+// 2. MAIN APPLICATION ROOT (THEME & STATE)
+// -------------------------------------------------------------
+class DJMovieApp extends StatefulWidget {
+  const DJMovieApp({super.key});
 
   @override
-  State<BongoFlixApp> createState() => _BongoFlixAppState();
+  State<DJMovieApp> createState() => _DJMovieAppState();
 }
 
-class _BongoFlixAppState extends State<BongoFlixApp> {
+class _DJMovieAppState extends State<DJMovieApp> {
   ThemeMode _themeMode = ThemeMode.dark;
-  String _language = 'sw';
+  String _language = 'Kiswahili';
 
-  void _toggleTheme(bool isDark) {
+  void toggleTheme(bool isDark) {
     setState(() {
       _themeMode = isDark ? ThemeMode.dark : ThemeMode.light;
     });
   }
 
-  void _changeLanguage(String lang) {
+  void changeLanguage(String lang) {
     setState(() {
       _language = lang;
     });
@@ -31,104 +86,53 @@ class _BongoFlixAppState extends State<BongoFlixApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BongoFlix',
+      title: 'DJ Movies Tanzania',
       debugShowCheckedModeBanner: false,
       themeMode: _themeMode,
       theme: ThemeData(
         brightness: Brightness.light,
-        primaryColor: const Color(0xFFE50914),
         scaffoldBackgroundColor: const Color(0xFFF3F4F6),
-        appBarTheme: const AppBarTheme(backgroundColor: Colors.white, foregroundColor: Colors.black),
+        primaryColor: Colors.deepPurple,
+        cardColor: Colors.white,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.deepPurple,
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        primaryColor: const Color(0xFFE50914),
-        scaffoldBackgroundColor: const Color(0xFF141414),
-        cardColor: const Color(0xFF1F1F1F),
-        appBarTheme: const AppBarTheme(backgroundColor: Color(0xFF141414), foregroundColor: Colors.white),
+        scaffoldBackgroundColor: const Color(0xFF111115),
+        cardColor: const Color(0xFF1E1E24),
+        primaryColor: Colors.deepPurpleAccent,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF111115),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
       ),
       home: MainNavigation(
-        themeMode: _themeMode,
-        language: _language,
-        onToggleTheme: _toggleTheme,
-        onChangeLanguage: _changeLanguage,
+        currentLanguage: _language,
+        onThemeChanged: toggleTheme,
+        onLangChanged: changeLanguage,
       ),
     );
   }
 }
 
-class MovieModel {
-  final int id;
-  final String title;
-  final String category;
-  final String rating;
-  final String year;
-  final String poster;
-  final String description;
-  final int totalEpisodes;
-  final String driveFolder;
-
-  MovieModel({
-    required this.id,
-    required this.title,
-    required this.category,
-    required this.rating,
-    required this.year,
-    required this.poster,
-    required this.description,
-    required this.totalEpisodes,
-    required this.driveFolder,
-  });
-}
-
-final List<MovieModel> sampleMovies = [
-  MovieModel(
-    id: 1,
-    title: "Sultan: Ushindi wa Damu",
-    category: "Series za Kihindi",
-    rating: "8.9",
-    year: "2024",
-    poster: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=500&q=80",
-    description: "Hadithi ya mfalme Sultan aliyepigania haki ya taifa lake dhidi ya maadui.",
-    totalEpisodes: 16,
-    driveFolder: "https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv",
-  ),
-  MovieModel(
-    id: 2,
-    title: "Kijiji Cha Mauti",
-    category: "Bongo Movie",
-    rating: "9.2",
-    year: "2025",
-    poster: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=500&q=80",
-    description: "Bongo movie ya kusisimua inayohusu siri nzito iliyofichika kijijini.",
-    totalEpisodes: 12,
-    driveFolder: "https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv",
-  ),
-  MovieModel(
-    id: 3,
-    title: "Black Shadow: Revenge",
-    category: "Action",
-    rating: "8.5",
-    year: "2024",
-    poster: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=500&q=80",
-    description: "Kikosi maalum cha makomando kinachorudi kulipiza kisasi.",
-    totalEpisodes: 10,
-    driveFolder: "https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv",
-  ),
-];
-
+// -------------------------------------------------------------
+// 3. BOTTOM NAVIGATION BAR CONTROLLER
+// -------------------------------------------------------------
 class MainNavigation extends StatefulWidget {
-  final ThemeMode themeMode;
-  final String language;
-  final Function(bool) onToggleTheme;
-  final Function(String) onChangeLanguage;
+  final String currentLanguage;
+  final Function(bool) onThemeChanged;
+  final Function(String) onLangChanged;
 
   const MainNavigation({
     super.key,
-    required this.themeMode,
-    required this.language,
-    required this.onToggleTheme,
-    required this.onChangeLanguage,
+    required this.currentLanguage,
+    required this.onThemeChanged,
+    required this.onLangChanged,
   });
 
   @override
@@ -137,18 +141,61 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
-  final Set<int> _favorites = {1};
-  String _selectedCategory = 'All';
 
-  void _toggleFavorite(int id) {
-    setState(() {
-      if (_favorites.contains(id)) {
-        _favorites.remove(id);
-      } else {
-        _favorites.add(id);
-      }
-    });
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> screens = [
+      HomeScreen(lang: widget.currentLanguage),
+      const CategoryScreen(),
+      FavoriteScreen(lang: widget.currentLanguage),
+      SettingScreen(
+        lang: widget.currentLanguage,
+        onThemeChanged: widget.onThemeChanged,
+        onLangChanged: widget.onLangChanged,
+      ),
+    ];
+
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: screens,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) => setState(() => _currentIndex = index),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.folder_outlined),
+            selectedIcon: Icon(Icons.folder),
+            label: 'Category',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.star_border),
+            selectedIcon: Icon(Icons.star),
+            label: 'Favorites',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
+        ],
+      ),
+    );
   }
+}
+
+// -------------------------------------------------------------
+// 4. SCREEN 1: HOME (MARQUEE, PAYMENTS & RELEASES)
+// -------------------------------------------------------------
+class HomeScreen extends StatelessWidget {
+  final String lang;
+  const HomeScreen({super.key, required this.lang});
 
   void _openUrl(String url) async {
     final uri = Uri.parse(url);
@@ -157,339 +204,407 @@ class _MainNavigationState extends State<MainNavigation> {
     }
   }
 
-  void _showVipDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.workspace_premium, color: Colors.amber),
-            SizedBox(width: 8),
-            Text('LIPA VIP ACCESS'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Ep 1 - 8 ni BURE. Kutazama Ep 9 hadi mwisho:'),
-            SizedBox(height: 8),
-            Text('• Wiki: TZS 3,000\n• Mwezi: TZS 8,000', style: TextStyle(fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text('Lipa Namba: 0755 000 000 (M-Pesa / Tigo)'),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Funga')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            onPressed: () => _openUrl('https://wa.me/255755000000?text=Habari%20nataka%20kujiunga%20VIP'),
-            child: const Text('Thibitisha WhatsApp', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isSw = widget.language == 'sw';
-
-    final pages = [
-      _buildHome(isSw),
-      _buildCategory(isSw),
-      _buildFavorites(isSw),
-      _buildSettings(isSw),
-    ];
+    bool isSwahili = lang == 'Kiswahili';
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BONGO FLIX', style: TextStyle(color: Color(0xFFE50914), fontWeight: FontWeight.bold)),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE50914),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              ),
-              onPressed: _showVipDialog,
-              icon: const Icon(Icons.workspace_premium, color: Colors.amber, size: 16),
-              label: Text(isSw ? 'Lipa VIP' : 'VIP Access', style: const TextStyle(fontSize: 12, color: Colors.white)),
-            ),
-          )
-        ],
+        title: Text(isSwahili ? 'DJ Movies Tanzania' : 'DJ Movies Hub'),
       ),
-      body: pages[_currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: const Color(0xFFE50914),
-        items: [
-          BottomNavigationBarItem(icon: const Icon(Icons.home), label: isSw ? 'Home' : 'Home'),
-          BottomNavigationBarItem(icon: const Icon(Icons.category), label: isSw ? 'Category' : 'Category'),
-          BottomNavigationBarItem(icon: const Icon(Icons.bookmark), label: isSw ? 'Favorite' : 'Favorite'),
-          BottomNavigationBarItem(icon: const Icon(Icons.settings), label: isSw ? 'Setting' : 'Setting'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHome(bool isSw) {
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        // Marquee Ticker banner
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(color: const Color(0xFFE50914).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-          child: Row(
-            children: [
-              const Icon(Icons.campaign, color: Color(0xFFE50914), size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  isSw ? '🔥 Muvi mpya zimeingia: Kijiji Cha Mauti, Sultan Season 3! Lipa TZS 3,000 kwa wiki.' : '🔥 New Movies: Check out latest releases!',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFFE50914)),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(isSw ? 'Muvi Zinazopendwa' : 'Trending Movies', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: sampleMovies.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 10, mainAxisSpacing: 10),
-          itemBuilder: (ctx, i) => _buildMovieCard(sampleMovies[i]),
-        ),
-        const SizedBox(height: 20),
-        // Payment & Contact Section
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(color: Theme.of(context).cardColor, borderRadius: BorderRadius.circular(12)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Jinsi Ya Kulipia & Mawasiliano', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFFE50914))),
-              const SizedBox(height: 8),
-              const Text('M-Pesa / Tigo / Airtel: 0755 000 000 (BONGO FLIX)', style: TextStyle(fontSize: 12)),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                onPressed: () => _openUrl('https://wa.me/255755000000?text=Habari%20nimefanya%20malipo'),
-                icon: const Icon(Icons.chat, color: Colors.white),
-                label: const Text('Wasiliana WhatsApp', style: TextStyle(color: Colors.white)),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildMovieCard(MovieModel movie) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => DetailPage(movie: movie, onVipClick: _showVipDialog, onOpenUrl: _openUrl))),
+      body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.network(movie.poster, fit: BoxFit.cover),
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black54,
-                      radius: 16,
-                      child: IconButton(
-                        padding: EdgeInsets.zero,
-                        icon: Icon(_favorites.contains(movie.id) ? Icons.bookmark : Icons.bookmark_border, color: const Color(0xFFE50914), size: 18),
-                        onPressed: () => _toggleFavorite(movie.id),
-                      ),
-                    ),
-                  ),
-                ],
+            // Tangazo Linalotembea (Marquee)
+            Container(
+              height: 35,
+              color: Colors.deepPurple.withOpacity(0.15),
+              child: Marquee(
+                text: isSwahili
+                    ? '🔥 Karibu! Muvi mpya za Dj Mjukuu, Dj Ally, Dj Mack, Dj Murphy zimeongezwa! Ep 1 hadi 8 ni Bure! Kujiunga VIP Lipia kupitia namba ya malipo hapa chini 🔥'
+                    : '🔥 Welcome! New movies updated. Ep 1 to 8 are Free! Check payment details below for VIP Access 🔥',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.orangeAccent),
+                scrollAxis: Axis.horizontal,
+                velocity: 45.0,
+                blankSpace: 35.0,
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.all(8),
+
+            // Kadi ya Malipo / VIP
+            Container(
+              margin: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Colors.purple, Colors.deepPurpleAccent],
+                ),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(movie.category, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  Text(movie.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  Row(
+                    children: [
+                      const Icon(Icons.verified, color: Colors.amber),
+                      const SizedBox(width: 8),
+                      Text(
+                        isSwahili ? 'Jinsi ya Kulipia VIP' : 'How to Pay for VIP',
+                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isSwahili
+                        ? '1. Lipia kupitia M-Pesa / TigoPesa / Airtel Money\n2. Lipa Namba: 5522334 (DJ Movies Tanzania)\n3. Tuma Screenshot WhatsApp (07XXXXXXXX) ili ufunguliwe Season nzima bila kikomo.'
+                        : '1. Pay via Mobile Money (Till: 5522334)\n2. Send verification screenshot to WhatsApp to unlock all VIP episodes.',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                  ),
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.deepPurple,
+                    ),
+                    icon: const Icon(Icons.chat),
+                    label: Text(isSwahili ? 'Tuma Muamala WhatsApp' : 'Verify Payment'),
+                    onPressed: () => _openUrl('https://wa.me/255700000000'),
+                  )
                 ],
               ),
             ),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Text(
+                isSwahili ? 'Muvi Mpya Zilizotoka' : 'Latest Releases',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+
+            // Grid ya Movies
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.75,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: 4,
+              itemBuilder: (context, index) {
+                return Card(
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Container(
+                          color: Colors.grey.shade900,
+                          child: const Center(child: Icon(Icons.movie_creation_outlined, size: 48, color: Colors.grey)),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Season Part ${index + 1}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            const SizedBox(height: 2),
+                            const Text('DJ Ally • Kiswahili Audio', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                          ],
+                        ),
+                      )
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildCategory(bool isSw) {
-    final categories = ['All', 'Action', 'Bongo Movie', 'Series za Kihindi', 'Series za Kifilipino'];
-    final filtered = _selectedCategory == 'All'
-        ? sampleMovies
-        : sampleMovies.where((m) => m.category.toLowerCase() == _selectedCategory.toLowerCase()).toList();
-
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        Text(isSw ? 'Makundi ya Muvi' : 'Categories', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 40,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: categories.map((cat) => Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(cat),
-                selected: _selectedCategory == cat,
-                selectedColor: const Color(0xFFE50914),
-                onSelected: (bool selected) {
-                  setState(() => _selectedCategory = cat);
-                },
-              ),
-            )).toList(),
-          ),
-        ),
-        const SizedBox(height: 12),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: filtered.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.65, crossAxisSpacing: 10, mainAxisSpacing: 10),
-          itemBuilder: (ctx, i) => _buildMovieCard(filtered[i]),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFavorites(bool isSw) {
-    final favList = sampleMovies.where((m) => _favorites.contains(m.id)).toList();
-    if (favList.isEmpty) {
-      return Center(child: Text(isSw ? 'Huna muvi ulizohifadhi bado.' : 'No saved movies yet.'));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: favList.length,
-      itemBuilder: (ctx, i) => ListTile(
-        leading: Image.network(favList[i].poster, width: 45, fit: BoxFit.cover),
-        title: Text(favList[i].title),
-        subtitle: Text(favList[i].category),
-        trailing: IconButton(icon: const Icon(Icons.delete, color: Colors.red), onPressed: () => _toggleFavorite(favList[i].id)),
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (ctx) => DetailPage(movie: favList[i], onVipClick: _showVipDialog, onOpenUrl: _openUrl))),
-      ),
-    );
-  }
-
-  Widget _buildSettings(bool isSw) {
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        SwitchListTile(
-          secondary: const Icon(Icons.dark_mode, color: Color(0xFFE50914)),
-          title: Text(isSw ? 'Dark Mode' : 'Dark Theme'),
-          value: widget.themeMode == ThemeMode.dark,
-          onChanged: widget.onToggleTheme,
-        ),
-        ListTile(
-          leading: const Icon(Icons.language, color: Color(0xFFE50914)),
-          title: Text(isSw ? 'Lugha (Language)' : 'Language'),
-          trailing: DropdownButton<String>(
-            value: widget.language,
-            underline: const SizedBox(),
-            items: const [
-              DropdownMenuItem(value: 'sw', child: Text('Kiswahili')),
-              DropdownMenuItem(value: 'en', child: Text('English')),
-            ],
-            onChanged: (val) => widget.onChangeLanguage(val ?? 'sw'),
-          ),
-        ),
-        ListTile(
-          leading: const Icon(Icons.cloud, color: Colors.blue),
-          title: const Text('Google Drive Folder'),
-          onTap: () => _openUrl('https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.video_library, color: Colors.red),
-          title: const Text('YouTube Channel'),
-          onTap: () => _openUrl('https://youtube.com'),
-        ),
-        ListTile(
-          leading: const Icon(Icons.star, color: Colors.amber),
-          title: Text(isSw ? 'Tupigie Kura (Rate Us)' : 'Rate Us'),
-          onTap: () => _openUrl('https://play.google.com'),
-        ),
-      ],
     );
   }
 }
 
-class DetailPage extends StatelessWidget {
-  final MovieModel movie;
-  final VoidCallback onVipClick;
-  final Function(String) onOpenUrl;
+// -------------------------------------------------------------
+// 5. SCREEN 2: CATEGORY (MPANGILIO WA MA-DJ TOKA KWENYE PICHA)
+// -------------------------------------------------------------
+class CategoryScreen extends StatelessWidget {
+  const CategoryScreen({super.key});
 
-  const DetailPage({super.key, required this.movie, required this.onVipClick, required this.onOpenUrl});
+  final List<Map<String, dynamic>> djCategories = const [
+    {"name": ",,,+SINGLE ZOTE", "color": Colors.blueGrey, "date": "Modified 7:31 PM"},
+    {"name": ",,Dj Mjukuu", "color": Colors.lightGreen, "date": "Modified Aug 2"},
+    {"name": "\"Dj ALLY", "color": Colors.green, "date": "Modified Aug 13"},
+    {"name": "\"Dj Babu", "color": Colors.deepOrange, "date": "Modified Aug 13"},
+    {"name": "\"Dj Black", "color": Colors.purple, "date": "Modified Aug 13"},
+    {"name": "\"Dj BRYTON", "color": Colors.teal, "date": "Modified Aug 13"},
+    {"name": "\"Dj Hero", "color": Colors.blue, "date": "Modified Aug 13"},
+    {"name": "\"Dj M", "color": Colors.amber, "date": "Modified Aug 13"},
+    {"name": "*Dj MACK", "color": Colors.orange, "date": "Modified Aug 13"},
+    {"name": "*Dj Msati", "color": Colors.redAccent, "date": "Modified Aug 13"},
+    {"name": "*Dj murphy", "color": Colors.purpleAccent, "date": "Modified Aug 13"},
+    {"name": "*Dj Nasry", "color": Colors.indigo, "date": "Modified Aug 13"},
+    {"name": "*Dj Ommy", "color": Colors.brown, "date": "Modified Aug 13"},
+    {"name": "*Dj Raja", "color": Colors.lime, "date": "Modified Aug 13"},
+    {"name": "*Dj Shizzol", "color": Colors.deepOrangeAccent, "date": "Modified Aug 13"},
+    {"name": "*Dj Six 6", "color": Colors.blueGrey, "date": "Modified Aug 13"},
+    {"name": "*Dj SKILLS", "color": Colors.greenAccent, "date": "Modified Aug 13"},
+    {"name": "*Dj SMART", "color": Colors.grey, "date": "Modified Aug 13"},
+    {"name": "*Dj VASCO", "color": Colors.brown, "date": "Modified Aug 13"},
+    {"name": "*Ramso Dj", "color": Colors.lightBlue, "date": "Modified Aug 13"},
+    {"name": "ZOTE?", "color": Colors.grey, "date": "Modified Aug 13"},
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(movie.title)),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.network(movie.poster, height: 220, width: double.infinity, fit: BoxFit.cover),
-          ),
-          const SizedBox(height: 12),
-          Text(movie.title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          Text('${movie.category} • Rating: ${movie.rating}', style: const TextStyle(color: Colors.grey)),
-          const SizedBox(height: 8),
-          Text(movie.description),
-          const SizedBox(height: 16),
-          const Text('Episodes & Downloads', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: movie.totalEpisodes,
-            itemBuilder: (ctx, idx) {
-              final ep = idx + 1;
-              final isFree = ep <= 8;
-              return Card(
-                child: ListTile(
-                  leading: CircleAvatar(backgroundColor: isFree ? Colors.green.withOpacity(0.2) : Colors.amber.withOpacity(0.2), child: Text('$ep')),
-                  title: Text('Episode $ep'),
-                  subtitle: Text(isFree ? 'BURE (Free)' : 'VIP ONLY (Lipia)', style: TextStyle(color: isFree ? Colors.green : Colors.amber, fontWeight: FontWeight.bold)),
-                  trailing: isFree
-                      ? ElevatedButton(
-                    onPressed: () => onOpenUrl(movie.driveFolder),
-                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE50914)),
-                    child: const Text('Download', style: TextStyle(color: Colors.white, fontSize: 12)),
-                  )
-                      : OutlinedButton(
-                    onPressed: onVipClick,
-                    child: const Text('Fungua', style: TextStyle(fontSize: 12)),
-                  ),
+      appBar: AppBar(
+        title: const Text('SEASON ZOTE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        actions: [
+          IconButton(icon: const Icon(Icons.auto_awesome), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.search), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+        ],
+      ),
+      body: ListView.separated(
+        itemCount: djCategories.length,
+        separatorBuilder: (context, index) => const Divider(height: 1, color: Colors.white10),
+        itemBuilder: (context, index) {
+          final item = djCategories[index];
+          return ListTile(
+            leading: Stack(
+              alignment: Alignment.center,
+              children: [
+                Icon(Icons.folder, color: item["color"] as Color, size: 40),
+                const Positioned(
+                  bottom: 10,
+                  child: Icon(Icons.person, size: 14, color: Colors.white70),
+                )
+              ],
+            ),
+            title: Text(item["name"], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            subtitle: Text(item["date"], style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            trailing: const Icon(Icons.more_vert, size: 18, color: Colors.grey),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EpisodesListScreen(categoryName: item["name"]),
                 ),
               );
             },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// -------------------------------------------------------------
+// 6. SCREEN: EPISODES VIEW (EP 1-8 BURE + DOWNLOAD BUTTON)
+// -------------------------------------------------------------
+class EpisodesListScreen extends StatelessWidget {
+  final String categoryName;
+  const EpisodesListScreen({super.key, required this.categoryName});
+
+  void _handleAction(BuildContext context, int epNumber, String url) async {
+    if (epNumber > 8) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('VIP Access Only 🔒'),
+          content: const Text('Episode 1 hadi 8 ni BURE. Kuanzia Episode 9 kuendelea zimefungwa kwa wanachama wa VIP. Tafadhali wasiliana nasi WhatsApp au sehemu ya Home ili kulipia.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Sawa')),
+          ],
+        ),
+      );
+      return;
+    }
+
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(categoryName)),
+      body: ListView.builder(
+        itemCount: 20,
+        itemBuilder: (context, index) {
+          int ep = index + 1;
+          bool isFree = ep <= 8;
+
+          return Card(
+            margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: isFree ? Colors.green.shade700 : Colors.red.shade900,
+                child: Text('$ep', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+              title: Text('$categoryName - Ep $ep', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+              subtitle: Text(
+                isFree ? 'BURE (Free Episode)' : 'VIP ONLY 🔒',
+                style: TextStyle(color: isFree ? Colors.green : Colors.redAccent, fontSize: 12),
+              ),
+              trailing: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isFree ? Colors.deepPurple : Colors.grey.shade800,
+                  foregroundColor: Colors.white,
+                ),
+                icon: Icon(isFree ? Icons.download : Icons.lock, size: 16),
+                label: Text(isFree ? 'Download' : 'Locked'),
+                onPressed: () {
+                  _handleAction(context, ep, 'https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv');
+                },
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// -------------------------------------------------------------
+// 7. SCREEN 3: FAVORITES
+// -------------------------------------------------------------
+class FavoriteScreen extends StatelessWidget {
+  final String lang;
+  const FavoriteScreen({super.key, required this.lang});
+
+  @override
+  Widget build(BuildContext context) {
+    bool isSwahili = lang == 'Kiswahili';
+
+    return Scaffold(
+      appBar: AppBar(title: Text(isSwahili ? 'Vipendwa Vyangu' : 'My Favorites')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.star_border, size: 64, color: Colors.grey),
+            const SizedBox(height: 10),
+            Text(
+              isSwahili ? 'Hakuna movie zilizohifadhiwa hapa bado.' : 'No favorite movies added yet.',
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// -------------------------------------------------------------
+// 8. SCREEN 4: SETTINGS (DARK MODE, LANGUAGE, LINKS)
+// -------------------------------------------------------------
+class SettingScreen extends StatefulWidget {
+  final String lang;
+  final Function(bool) onThemeChanged;
+  final Function(String) onLangChanged;
+
+  const SettingScreen({
+    super.key,
+    required this.lang,
+    required this.onThemeChanged,
+    required this.onLangChanged,
+  });
+
+  @override
+  State<SettingScreen> createState() => _SettingScreenState();
+}
+
+class _SettingScreenState extends State<SettingScreen> {
+  bool _isDark = true;
+
+  void _launchUrl(String urlString) async {
+    final uri = Uri.parse(urlString);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    bool isSwahili = widget.lang == 'Kiswahili';
+
+    return Scaffold(
+      appBar: AppBar(title: Text(isSwahili ? 'Mipangilio' : 'Settings')),
+      body: ListView(
+        children: [
+          // Theme Switch
+          SwitchListTile(
+            secondary: const Icon(Icons.dark_mode),
+            title: Text(isSwahili ? 'Muonekano wa Giza (Dark Mode)' : 'Dark Mode'),
+            value: _isDark,
+            onChanged: (val) {
+              setState(() => _isDark = val);
+              widget.onThemeChanged(val);
+            },
+          ),
+
+          // Lugha
+          ListTile(
+            leading: const Icon(Icons.language),
+            title: Text(isSwahili ? 'Lugha / Language' : 'Language'),
+            subtitle: Text(widget.lang),
+            trailing: DropdownButton<String>(
+              value: widget.lang,
+              underline: const SizedBox(),
+              items: const [
+                DropdownMenuItem(value: 'Kiswahili', child: Text('Kiswahili')),
+                DropdownMenuItem(value: 'English', child: Text('English')),
+              ],
+              onChanged: (value) {
+                if (value != null) widget.onLangChanged(value);
+              },
+            ),
+          ),
+          const Divider(),
+
+          // Viunganishi vya Nje
+          ListTile(
+            leading: const Icon(Icons.cloud_download, color: Colors.blueAccent),
+            title: const Text('Google Drive Hub'),
+            subtitle: const Text('Fungua folder la Google Drive moja kwa moja'),
+            onTap: () => _launchUrl('https://drive.google.com/drive/folders/1y5y-5_Pz0YyNWOxng1095L9R9YFp6htv'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.video_library, color: Colors.redAccent),
+            title: const Text('YouTube Channel'),
+            subtitle: const Text('Angalia video mpya na matangazo'),
+            onTap: () => _launchUrl('https://youtube.com'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.chat, color: Colors.green),
+            title: const Text('WhatsApp / Mawasiliano'),
+            subtitle: const Text('Msaada, maoni na kuwezeshwa VIP'),
+            onTap: () => _launchUrl('https://wa.me/255700000000'),
+          ),
+          const Divider(),
+
+          // About & Rating
+          ListTile(
+            leading: const Icon(Icons.star_rate, color: Colors.amber),
+            title: Text(isSwahili ? 'Tukadirie (Rate Us)' : 'Rate Us'),
+            onTap: () {},
+          ),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: Text(isSwahili ? 'Kuhusu App (About)' : 'About App'),
+            subtitle: const Text('Version 1.0.0 • DJ Tanzanian Hub'),
+            onTap: () {},
           ),
         ],
       ),
