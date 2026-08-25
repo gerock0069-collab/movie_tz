@@ -528,18 +528,30 @@ class SettingsScreen extends StatelessWidget {
       children: [
         // Sehemu ya Malipo na Group
         Card(
-          color: Colors.redAccent.withOpacity(0.15),
+          color: Colors.redAccent.withOpacity(0.1),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           child: const Padding(
             padding: EdgeInsets.all(14.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('JIUNGE NA VIP GROUP (MOVIES 5000+ MWEZI MZIMA)', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent)),
+                Text(
+                  'JIUNGE NA VIP GROUP (MOVIES 5000+ MWEZI)',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 SizedBox(height: 6),
-                Text('• Gharama: Tsh 5,000 / Mwezi', style: TextStyle(fontSize: 14)),
-                Text('• Lipa Namba: 19382338', style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('• Namba ya Simu: 0775 477047', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  '• Gharama: Tsh 5,000 / Mwezi',
+                  style: TextStyle(fontSize: 14),
+                ),
+                Text(
+                  '• Lipa Namba: 19382338',
+                  style: TextStyle(fontSize: 14),
+                ),
+                Text(
+                  '• Namba ya Simu: 0775 477047',
+                  style: TextStyle(fontSize: 14),
+                ),
               ],
             ),
           ),
@@ -560,7 +572,9 @@ class SettingsScreen extends StatelessWidget {
               DropdownMenuItem(value: 'sw', child: Text('Kiswahili')),
               DropdownMenuItem(value: 'en', child: Text('English')),
             ],
-            onChanged: (val) => onChangeLanguage(val ?? 'sw'),
+            onChanged: (val) {
+              // Hapa unaweza kuweka logic ya kubadili lugha
+            },
           ),
         ),
         ListTile(
